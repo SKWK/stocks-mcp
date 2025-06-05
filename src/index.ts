@@ -5,14 +5,15 @@ import { z } from "zod";
 export class MyMCP extends McpAgent {
 	server = new McpServer({
 		name: "Stock Price Lookup Agent",
-		version: "1.0.0",
+		version: "1.1.0",
+		description: "Use tools only when the user asks for stock information. If the user says something casual like 'Hello' or 'Tell me a joke', respond naturally and do NOT call any tools."
 	});
 
 	async init() {
 		this.server.tool(
 			"getStockPrice",
 			{
-				symbol: z.string().describe("The stock ticker symbol (like AAPL or TSLA). Only call this tool if the user explicitly asks for a stock price, such as 'What is AAPL trading at?' or 'Get price for Tesla.' Do not guess."),
+				symbol: z.string().describe("The stock ticker symbol like AAPL, TSLA, or MSFT. Only use this tool if the user clearly asks for a stock price, stock quote, or market value of a company or symbol. Do NOT call this tool if the user is just saying hello, making small talk, or asking a general question. In those cases, simply respond conversationally and do NOT call any tool."),
 			},
 			async ({ symbol }) => {
 				try {

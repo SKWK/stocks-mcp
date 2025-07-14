@@ -52,18 +52,54 @@ export class MyMCP extends McpAgent {
 	}
 }
 
+function withCORS(response: Response): Response {
+	const newHeaders = new Headers(response.headers);
+	newHeaders.set("Access-Control-Allow-Origin", "*");
+	newHeaders.set("Access-Control-Allow-Headers", "*");
+	newHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+	return new Response(response.body, {
+		status: response.status,
+		statusText: response.statusText,
+		headers: newHeaders,
+	});
+}
+
 export default {
-	fetch(request: Request, env: Env, ctx: ExecutionContext) {
+	async fetch(request: Request, env: Env, ctx: ExecutionContext) {
 		const url = new URL(request.url);
+
+		// Handle CORS preflight
+		if (request.method === "OPTIONS") {
+			return new Response(null, {
+				status: 204,
+				headers: {
+					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+					"Access-Control-Allow-Headers": "*",
+				},
+			});
+		}
+
+		// Patch Accept header if missing
+		const patchedRequest = new Request(request, {
+			headers: new Headers({
+				...Object.fromEntries(request.headers),
+				Accept: request.headers.get("Accept")?.includes("application/json")
+					? request.headers.get("Accept")!
+					: "application/json, text/event-stream",
+			}),
+		});
 
 		if (url.pathname === "/sse" || url.pathname === "/sse/message") {
 			// @ts-ignore
-			return MyMCP.serveSSE("/sse").fetch(request, env, ctx);
+			const res = await MyMCP.serveSSE("/sse").fetch(patchedRequest, env, ctx);
+			return withCORS(res);
 		}
 
 		if (url.pathname === "/mcp") {
 			// @ts-ignore
-			return MyMCP.serve("/mcp").fetch(request, env, ctx);
+			const res = await MyMCP.serve("/mcp").fetch(patchedRequest, env, ctx);
+			return withCORS(res);
 		}
 
 		return new Response("Not found", { status: 404 });
